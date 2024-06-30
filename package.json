@@ -1,0 +1,36 @@
+{
+  "name": "victor-nest-resource",
+  "version": "1.0.1",
+  "description": "A cli for generating a module, service and controller in nest js with one command",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "outDir": "/dist",
+  "bin": {
+    "nest-resource": "dist/index.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsup",
+    "publish": "npm run build && npm publish"
+  },
+  "keywords": [],
+  "author": "Victor Rono",
+  "license": "ISC",
+  "dependencies": {
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "tsup": "^8.1.0",
+    "typescript": "^5.5.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Victor-Rono/nest-generate-resource.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Victor-Rono/nest-generate-resource/issues"
+  },
+  "homepage": "https://github.com/Victor-Rono/nest-generate-resource#readme"
+}
