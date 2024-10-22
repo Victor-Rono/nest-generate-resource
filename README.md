@@ -23,4 +23,8 @@ The goal of this project is to:
 Run this command to generate a full module along with service, controller, and other components (if supported):
 
 ```bash
-generate-nest-module <ModuleName>
+npm i -g nest-resource
+
+
+```bash
+nest-resource generatee users
