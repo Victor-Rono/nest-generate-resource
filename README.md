@@ -20,11 +20,13 @@ The goal of this project is to:
 
 ### 1. Generate a Full Module
 
-Run this command to generate a full module along with service, controller, and other components (if supported):
+Install Globally:
 
 ```bash
 npm i -g nest-resource
 
+```
+### Run this command to generate a full module along with service, controller, and other components (if supported):
 
 ```bash
 nest-resource generatee users
