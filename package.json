@@ -1,6 +1,6 @@
 {
   "name": "victor-nest-resource",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "A cli for generating a module, service and controller in nest js with one command",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
