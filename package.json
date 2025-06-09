@@ -1,6 +1,6 @@
 {
   "name": "victor-nest-resource",
-  "version": "1.0.1",
+  "version": "1.0.4",
   "description": "A cli for generating a module, service and controller in nest js with one command",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -12,7 +12,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsup",
-    "publish": "npm run build && npm publish"
+    "publish": "npm version patch && npm run build && npm publish"
   },
   "keywords": [],
   "author": "Victor Rono",
