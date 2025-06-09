@@ -65,7 +65,7 @@ export const ${capitalizedName}Schema = new Schema({
             break;
           case "model":
             content = `// ${capitalizedName} Model
-export class ${capitalizedName} {
+export class ${capitalizedName}Model {
   // define model fields
 }`;
             break;
@@ -83,13 +83,13 @@ export const ${capitalizedName}Events = {
             break;
           case "interfaces":
             content = `// ${capitalizedName} Interface
-export interface I${capitalizedName} {
+export interface ${capitalizedName}Interface {
   // define interface shape
 }`;
             break;
           case "functions":
             content = `// ${capitalizedName} Utility Functions
-export function exampleFunction() {
+export function ${capitalizedName}Function() {
   // implement reusable logic
 }`;
             break;
