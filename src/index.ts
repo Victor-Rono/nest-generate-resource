@@ -9,12 +9,12 @@ const program = new Command();
 
 program
     .version('1.0.1')
-    .description('CLI tool to generate NestJS modules, controllers, and services');
+    .description('CLI tool to generate a complete NestJS feature structure');
 
 program
     .command('generate <name>')
     .alias('g')
-    .description('Generate a NestJS module, controller, services, and structure')
+    .description('Generate a NestJS module, controller, services, and related structure')
     .action((name) => {
         const basePath = `./${name}`;
         const modulePath = `${basePath}/${name}.module.ts`;
@@ -27,7 +27,7 @@ program
             `nest g controller ${name}/controllers/${name}`,
         ];
 
-        // Run generation commands
+        // Execute CLI commands to generate NestJS scaffolding
         commands.forEach(cmd => {
             exec(cmd, (error, stdout, stderr) => {
                 if (error) {
@@ -42,15 +42,16 @@ program
             });
         });
 
-        // Create custom folders and files
+        // Create folders and custom .ts files
         const folders = ['dto', 'schema', 'model', 'repository', 'events', 'interfaces', 'functions', 'data'];
         const files = folders.map(folder => ({
             path: `${basePath}/${folder}`,
             file: `${basePath}/${folder}/${name}.${folder}.ts`
         }));
 
-        // Delay execution to avoid race condition
+        // Delay to avoid CLI race conditions
         setTimeout(() => {
+            // Create folders
             folders.forEach(folder => {
                 const folderPath = `${basePath}/${folder}`;
                 if (!fs.existsSync(folderPath)) {
@@ -59,19 +60,53 @@ program
                 }
             });
 
+            // Create .ts files with meaningful placeholders
             files.forEach(({ file }) => {
                 if (!fs.existsSync(file)) {
-                    fs.writeFileSync(file, `// ${path.basename(file)}`);
-                    console.log(`Created file: ${file}`);
+                    const filename = path.basename(file);
+                    const fileType = filename.split('.')[1];
+                    let content = '';
+
+                    switch (fileType) {
+                        case 'dto':
+                            content = `// ${capitalizedName} DTO\nexport class ${capitalizedName}Dto {\n  // define properties\n}`;
+                            break;
+                        case 'schema':
+                            content = `// ${capitalizedName} Schema (Mongoose)\nimport { Schema } from 'mongoose';\n\nexport const ${capitalizedName}Schema = new Schema({\n  // define schema fields\n});`;
+                            break;
+                        case 'model':
+                            content = `// ${capitalizedName} Model\nexport class ${capitalizedName} {\n  // define model fields\n}`;
+                            break;
+                        case 'repository':
+                            content = `// ${capitalizedName} Repository\nexport class ${capitalizedName}Repository {\n  // implement database operations\n}`;
+                            break;
+                        case 'events':
+                            content = `// ${capitalizedName} Events\nexport const ${capitalizedName}Events = {\n  // define events like CREATED, UPDATED\n};`;
+                            break;
+                        case 'interfaces':
+                            content = `// ${capitalizedName} Interface\nexport interface I${capitalizedName} {\n  // define interface shape\n}`;
+                            break;
+                        case 'functions':
+                            content = `// ${capitalizedName} Utility Functions\nexport function exampleFunction() {\n  // implement reusable logic\n}`;
+                            break;
+                        case 'data':
+                            content = `// ${capitalizedName} Static/Fake Data\nexport const ${capitalizedName}Data = [\n  // mock objects for testing\n];`;
+                            break;
+                        default:
+                            content = `// ${filename}`;
+                    }
+
+                    fs.writeFileSync(file, content);
+                    console.log(`Created file with placeholder: ${file}`);
                 }
             });
         }, 2000);
 
-        // Optional: auto-modify module file if needed
+        // Optionally patch module.ts file with imports if needed
         setTimeout(() => {
             fs.readFile(modulePath, 'utf8', (err, data) => {
                 if (err) {
-                    console.error(`Error reading file: ${err.message}`);
+                    console.error(`Error reading module file: ${err.message}`);
                     return;
                 }
 
