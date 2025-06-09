@@ -75,7 +75,7 @@ program
                             content = `// ${capitalizedName} Schema (Mongoose)\nimport { Schema } from 'mongoose';\n\nexport const ${capitalizedName}Schema = new Schema({\n  // define schema fields\n});`;
                             break;
                         case 'model':
-                            content = `// ${capitalizedName} Model\nexport class ${capitalizedName} {\n  // define model fields\n}`;
+                            content = `// ${capitalizedName} Model\nexport class ${capitalizedName}Model {\n  // define model fields\n}`;
                             break;
                         case 'repository':
                             content = `// ${capitalizedName} Repository\nexport class ${capitalizedName}Repository {\n  // implement database operations\n}`;
@@ -84,10 +84,10 @@ program
                             content = `// ${capitalizedName} Events\nexport const ${capitalizedName}Events = {\n  // define events like CREATED, UPDATED\n};`;
                             break;
                         case 'interfaces':
-                            content = `// ${capitalizedName} Interface\nexport interface I${capitalizedName} {\n  // define interface shape\n}`;
+                            content = `// ${capitalizedName} Interface\nexport interface ${capitalizedName}Interface {\n  // define interface shape\n}`;
                             break;
                         case 'functions':
-                            content = `// ${capitalizedName} Utility Functions\nexport function exampleFunction() {\n  // implement reusable logic\n}`;
+                            content = `// ${capitalizedName} Utility Functions\nexport function ${capitalizedName}Function() {\n  // implement reusable logic\n}`;
                             break;
                         case 'data':
                             content = `// ${capitalizedName} Static/Fake Data\nexport const ${capitalizedName}Data = [\n  // mock objects for testing\n];`;

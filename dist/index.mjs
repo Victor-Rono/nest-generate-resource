@@ -6,8 +6,8 @@ import { exec } from "child_process";
 import fs from "fs";
 import path from "path";
 var program = new Command();
-program.version("1.0.1").description("CLI tool to generate NestJS modules, controllers, and services");
-program.command("generate <name>").alias("g").description("Generate a NestJS module, controller, services, and structure").action((name) => {
+program.version("1.0.1").description("CLI tool to generate a complete NestJS feature structure");
+program.command("generate <name>").alias("g").description("Generate a NestJS module, controller, services, and related structure").action((name) => {
   const basePath = `./${name}`;
   const modulePath = `${basePath}/${name}.module.ts`;
   const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
@@ -45,15 +45,72 @@ program.command("generate <name>").alias("g").description("Generate a NestJS mod
     });
     files.forEach(({ file }) => {
       if (!fs.existsSync(file)) {
-        fs.writeFileSync(file, `// ${path.basename(file)}`);
-        console.log(`Created file: ${file}`);
+        const filename = path.basename(file);
+        const fileType = filename.split(".")[1];
+        let content = "";
+        switch (fileType) {
+          case "dto":
+            content = `// ${capitalizedName} DTO
+export class ${capitalizedName}Dto {
+  // define properties
+}`;
+            break;
+          case "schema":
+            content = `// ${capitalizedName} Schema (Mongoose)
+import { Schema } from 'mongoose';
+
+export const ${capitalizedName}Schema = new Schema({
+  // define schema fields
+});`;
+            break;
+          case "model":
+            content = `// ${capitalizedName} Model
+export class ${capitalizedName} {
+  // define model fields
+}`;
+            break;
+          case "repository":
+            content = `// ${capitalizedName} Repository
+export class ${capitalizedName}Repository {
+  // implement database operations
+}`;
+            break;
+          case "events":
+            content = `// ${capitalizedName} Events
+export const ${capitalizedName}Events = {
+  // define events like CREATED, UPDATED
+};`;
+            break;
+          case "interfaces":
+            content = `// ${capitalizedName} Interface
+export interface I${capitalizedName} {
+  // define interface shape
+}`;
+            break;
+          case "functions":
+            content = `// ${capitalizedName} Utility Functions
+export function exampleFunction() {
+  // implement reusable logic
+}`;
+            break;
+          case "data":
+            content = `// ${capitalizedName} Static/Fake Data
+export const ${capitalizedName}Data = [
+  // mock objects for testing
+];`;
+            break;
+          default:
+            content = `// ${filename}`;
+        }
+        fs.writeFileSync(file, content);
+        console.log(`Created file with placeholder: ${file}`);
       }
     });
   }, 2e3);
   setTimeout(() => {
     fs.readFile(modulePath, "utf8", (err, data) => {
       if (err) {
-        console.error(`Error reading file: ${err.message}`);
+        console.error(`Error reading module file: ${err.message}`);
         return;
       }
       const updatedData = data.replace(/imports: \[\],/g, `imports: [],
