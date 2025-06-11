@@ -7,18 +7,33 @@ import path from 'path';
 
 const program = new Command();
 
+// Convert kebab-case or snake_case to PascalCase (e.g., user-accounts → UserAccounts)
+function toPascalCase(name: string): string {
+    return name
+        .replace(/[-_]+/g, ' ')
+        .replace(/\s(.)/g, (_, char) => char.toUpperCase())
+        .replace(/\s/g, '')
+        .replace(/^(.)/, (_, char) => char.toUpperCase());
+}
+
+// Clean folder-safe name (e.g., user-accounts → user-accounts)
+function toFileSafeName(name: string): string {
+    return name.toLowerCase().replace(/[^a-z0-9\-]/g, '');
+}
+
 program
     .version('1.0.1')
     .description('CLI tool to generate a complete NestJS feature structure');
 
-program
+const generateCommand = program
     .command('generate <name>')
     .alias('g')
     .description('Generate a NestJS module, controller, services, and related structure')
-    .action((name) => {
+    .action((rawName) => {
+        const name = toFileSafeName(rawName);
+        const capitalizedName = toPascalCase(name);
         const basePath = `./${name}`;
         const modulePath = `${basePath}/${name}.module.ts`;
-        const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
 
         const commands = [
             `nest g module ${name}`,
@@ -27,7 +42,7 @@ program
             `nest g controller ${name}/controllers/${name}`,
         ];
 
-        // Execute CLI commands to generate NestJS scaffolding
+        // Execute NestJS CLI commands
         commands.forEach(cmd => {
             exec(cmd, (error, stdout, stderr) => {
                 if (error) {
@@ -42,16 +57,13 @@ program
             });
         });
 
-        // Create folders and custom .ts files
         const folders = ['dto', 'schema', 'model', 'repository', 'events', 'interfaces', 'functions', 'data'];
         const files = folders.map(folder => ({
             path: `${basePath}/${folder}`,
             file: `${basePath}/${folder}/${name}.${folder}.ts`
         }));
 
-        // Delay to avoid CLI race conditions
         setTimeout(() => {
-            // Create folders
             folders.forEach(folder => {
                 const folderPath = `${basePath}/${folder}`;
                 if (!fs.existsSync(folderPath)) {
@@ -60,7 +72,6 @@ program
                 }
             });
 
-            // Create .ts files with meaningful placeholders
             files.forEach(({ file }) => {
                 if (!fs.existsSync(file)) {
                     const filename = path.basename(file);
@@ -102,7 +113,6 @@ program
             });
         }, 2000);
 
-        // Optionally patch module.ts file with imports if needed
         setTimeout(() => {
             fs.readFile(modulePath, 'utf8', (err, data) => {
                 if (err) {
