@@ -7,31 +7,31 @@ import path from 'path';
 
 const program = new Command();
 
-// Convert kebab-case or snake_case to PascalCase (e.g., user-accounts → UserAccounts)
-function toPascalCase(name: string): string {
-    return name
+// Convert kebab/snake/camelCase to PascalCase (e.g., user-accounts → UserAccounts)
+function toPascalCase(input: string): string {
+    return input
         .replace(/[-_]+/g, ' ')
         .replace(/\s(.)/g, (_, char) => char.toUpperCase())
         .replace(/\s/g, '')
         .replace(/^(.)/, (_, char) => char.toUpperCase());
 }
 
-// Clean folder-safe name (e.g., user-accounts → user-accounts)
-function toFileSafeName(name: string): string {
-    return name.toLowerCase().replace(/[^a-z0-9\-]/g, '');
+// Clean to kebab-case for folder and file names
+function toFileSafeName(input: string): string {
+    return input.toLowerCase().replace(/[^a-z0-9\-]/g, '');
 }
 
 program
     .version('1.0.1')
     .description('CLI tool to generate a complete NestJS feature structure');
 
-const generateCommand = program
+program
     .command('generate <name>')
     .alias('g')
     .description('Generate a NestJS module, controller, services, and related structure')
     .action((rawName) => {
-        const name = toFileSafeName(rawName);
-        const capitalizedName = toPascalCase(name);
+        const name = toFileSafeName(rawName); // e.g., user-accounts
+        const capitalizedName = toPascalCase(rawName); // e.g., UserAccounts
         const basePath = `./${name}`;
         const modulePath = `${basePath}/${name}.module.ts`;
 
@@ -42,17 +42,10 @@ const generateCommand = program
             `nest g controller ${name}/controllers/${name}`,
         ];
 
-        // Execute NestJS CLI commands
         commands.forEach(cmd => {
             exec(cmd, (error, stdout, stderr) => {
-                if (error) {
-                    console.error(`Error: ${error.message}`);
-                    return;
-                }
-                if (stderr) {
-                    console.error(`Stderr: ${stderr}`);
-                    return;
-                }
+                if (error) return console.error(`Error: ${error.message}`);
+                if (stderr) return console.error(`Stderr: ${stderr}`);
                 console.log(stdout);
             });
         });
@@ -92,16 +85,16 @@ const generateCommand = program
                             content = `// ${capitalizedName} Repository\nexport class ${capitalizedName}Repository {\n  // implement database operations\n}`;
                             break;
                         case 'events':
-                            content = `// ${capitalizedName} Events\nexport const ${capitalizedName}Events = {\n  // define events like CREATED, UPDATED\n};`;
+                            content = `// ${capitalizedName} Events\nexport const ${capitalizedName}Events = {\n  CREATED: '${capitalizedName}_CREATED',\n  UPDATED: '${capitalizedName}_UPDATED',\n};`;
                             break;
                         case 'interfaces':
                             content = `// ${capitalizedName} Interface\nexport interface ${capitalizedName}Interface {\n  // define interface shape\n}`;
                             break;
                         case 'functions':
-                            content = `// ${capitalizedName} Utility Functions\nexport function ${capitalizedName}Function() {\n  // implement reusable logic\n}`;
+                            content = `// ${capitalizedName} Utility Functions\nexport function use${capitalizedName}Utils() {\n  // reusable logic\n}`;
                             break;
                         case 'data':
-                            content = `// ${capitalizedName} Static/Fake Data\nexport const ${capitalizedName}Data = [\n  // mock objects for testing\n];`;
+                            content = `// ${capitalizedName} Static/Fake Data\nexport const ${capitalizedName}Data = [\n  // mock data\n];`;
                             break;
                         default:
                             content = `// ${filename}`;
