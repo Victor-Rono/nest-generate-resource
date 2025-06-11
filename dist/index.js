@@ -29,11 +29,18 @@ var import_child_process = require("child_process");
 var import_fs = __toESM(require("fs"));
 var import_path = __toESM(require("path"));
 var program = new import_commander.Command();
+function toPascalCase(input) {
+  return input.replace(/[-_]+/g, " ").replace(/\s(.)/g, (_, char) => char.toUpperCase()).replace(/\s/g, "").replace(/^(.)/, (_, char) => char.toUpperCase());
+}
+function toFileSafeName(input) {
+  return input.toLowerCase().replace(/[^a-z0-9\-]/g, "");
+}
 program.version("1.0.1").description("CLI tool to generate a complete NestJS feature structure");
-program.command("generate <name>").alias("g").description("Generate a NestJS module, controller, services, and related structure").action((name) => {
+program.command("generate <name>").alias("g").description("Generate a NestJS module, controller, services, and related structure").action((rawName) => {
+  const name = toFileSafeName(rawName);
+  const capitalizedName = toPascalCase(rawName);
   const basePath = `./${name}`;
   const modulePath = `${basePath}/${name}.module.ts`;
-  const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
   const commands = [
     `nest g module ${name}`,
     `nest g service ${name}/services/${name}`,
@@ -42,14 +49,8 @@ program.command("generate <name>").alias("g").description("Generate a NestJS mod
   ];
   commands.forEach((cmd) => {
     (0, import_child_process.exec)(cmd, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Error: ${error.message}`);
-        return;
-      }
-      if (stderr) {
-        console.error(`Stderr: ${stderr}`);
-        return;
-      }
+      if (error) return console.error(`Error: ${error.message}`);
+      if (stderr) return console.error(`Stderr: ${stderr}`);
       console.log(stdout);
     });
   });
@@ -101,7 +102,8 @@ export class ${capitalizedName}Repository {
           case "events":
             content = `// ${capitalizedName} Events
 export const ${capitalizedName}Events = {
-  // define events like CREATED, UPDATED
+  CREATED: '${capitalizedName}_CREATED',
+  UPDATED: '${capitalizedName}_UPDATED',
 };`;
             break;
           case "interfaces":
@@ -112,14 +114,14 @@ export interface ${capitalizedName}Interface {
             break;
           case "functions":
             content = `// ${capitalizedName} Utility Functions
-export function ${capitalizedName}Function() {
-  // implement reusable logic
+export function use${capitalizedName}Utils() {
+  // reusable logic
 }`;
             break;
           case "data":
             content = `// ${capitalizedName} Static/Fake Data
 export const ${capitalizedName}Data = [
-  // mock objects for testing
+  // mock data
 ];`;
             break;
           default:
