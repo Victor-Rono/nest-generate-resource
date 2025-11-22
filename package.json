@@ -1,6 +1,6 @@
 {
   "name": "victor-nest-resource",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "description": "A cli for generating a module, service and controller in nest js with one command",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -18,7 +18,8 @@
   "author": "Victor Rono",
   "license": "ISC",
   "dependencies": {
-    "commander": "^12.1.0"
+    "commander": "^12.1.0",
+    "victor-nest-resource": "^1.0.9"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",
