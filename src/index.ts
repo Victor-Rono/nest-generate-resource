@@ -16,22 +16,22 @@ function toPascalCase(input: string): string {
         .replace(/^(.)/, (_, char) => char.toUpperCase());
 }
 
-// Clean to kebab-case for folder and file names
+// Clean to kebab-case for folder/file names
 function toFileSafeName(input: string): string {
     return input.toLowerCase().replace(/[^a-z0-9\-]/g, '');
 }
 
+// ===== NestJS resource generation =====
 program
     .version('1.0.1')
-    .description('CLI tool to generate a complete NestJS feature structure');
+    .description('CLI tool to generate NestJS or C++ feature structures');
 
 program
-    .command('generate <name>')
-    .alias('g')
+    .command('g <name>')
     .description('Generate a NestJS module, controller, services, and related structure')
     .action((rawName) => {
-        const name = toFileSafeName(rawName); // e.g., user-accounts
-        const capitalizedName = toPascalCase(rawName); // e.g., UserAccounts
+        const name = toFileSafeName(rawName);
+        const capitalizedName = toPascalCase(rawName);
         const basePath = `./${name}`;
         const modulePath = `${basePath}/${name}.module.ts`;
 
@@ -45,73 +45,61 @@ program
         commands.forEach(cmd => {
             exec(cmd, (error, stdout, stderr) => {
                 if (error) return console.error(`Error: ${error.message}`);
-                if (stderr) return console.error(`Stderr: ${stderr}`);
-                console.log(stdout);
+                if (stderr) console.error(`Stderr: ${stderr}`);
+                if (stdout) console.log(stdout);
             });
         });
 
         const folders = ['dto', 'schema', 'model', 'repository', 'events', 'interfaces', 'functions', 'data'];
-        const files = folders.map(folder => ({
-            path: `${basePath}/${folder}`,
-            file: `${basePath}/${folder}/${name}.${folder}.ts`
-        }));
 
         setTimeout(() => {
             folders.forEach(folder => {
                 const folderPath = `${basePath}/${folder}`;
-                if (!fs.existsSync(folderPath)) {
-                    fs.mkdirSync(folderPath, { recursive: true });
-                    console.log(`Created folder: ${folderPath}`);
-                }
-            });
+                if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
 
-            files.forEach(({ file }) => {
-                if (!fs.existsSync(file)) {
-                    const filename = path.basename(file);
-                    const fileType = filename.split('.')[1];
+                const fileName = `${name}.${folder}.ts`;
+                const filePath = `${folderPath}/${fileName}`;
+                if (!fs.existsSync(filePath)) {
+                    const typeName = toPascalCase(`${rawName} ${folder}`);
                     let content = '';
 
-                    switch (fileType) {
+                    switch (folder) {
                         case 'dto':
-                            content = `// ${capitalizedName} DTO\nexport class ${capitalizedName}Dto {\n  // define properties\n}`;
+                            content = `export class ${typeName} {\n  // define properties\n}`;
                             break;
                         case 'schema':
-                            content = `// ${capitalizedName} Schema (Mongoose)\nimport { Schema } from 'mongoose';\n\nexport const ${capitalizedName}Schema = new Schema({\n  // define schema fields\n});`;
+                            content = `import { Schema } from 'mongoose';\n\nexport const ${typeName} = new Schema({\n  // define schema fields\n});`;
                             break;
                         case 'model':
-                            content = `// ${capitalizedName} Model\nexport class ${capitalizedName}Model {\n  // define model fields\n}`;
+                            content = `export class ${typeName} {\n  // define model fields\n}`;
                             break;
                         case 'repository':
-                            content = `// ${capitalizedName} Repository\nexport class ${capitalizedName}Repository {\n  // implement database operations\n}`;
+                            content = `export class ${typeName} {\n  // implement database operations\n}`;
                             break;
                         case 'events':
-                            content = `// ${capitalizedName} Events\nexport const ${capitalizedName}Events = {\n  CREATED: '${capitalizedName}_CREATED',\n  UPDATED: '${capitalizedName}_UPDATED',\n};`;
+                            content = `export const ${typeName} = {\n  CREATED: '${typeName}_CREATED',\n  UPDATED: '${typeName}_UPDATED',\n};`;
                             break;
                         case 'interfaces':
-                            content = `// ${capitalizedName} Interface\nexport interface ${capitalizedName}Interface {\n  // define interface shape\n}`;
+                            content = `export interface ${typeName} {\n  // define interface shape\n}`;
                             break;
                         case 'functions':
-                            content = `// ${capitalizedName} Utility Functions\nexport function use${capitalizedName}Utils() {\n  // reusable logic\n}`;
+                            content = `export function use${typeName}() {\n  // reusable logic\n}`;
                             break;
                         case 'data':
-                            content = `// ${capitalizedName} Static/Fake Data\nexport const ${capitalizedName}Data = [\n  // mock data\n];`;
+                            content = `export const ${typeName} = [\n  // mock data\n];`;
                             break;
-                        default:
-                            content = `// ${filename}`;
                     }
 
-                    fs.writeFileSync(file, content);
-                    console.log(`Created file with placeholder: ${file}`);
+                    fs.writeFileSync(filePath, content);
+                    console.log(`Created file with PascalCase symbol: ${filePath}`);
                 }
             });
         }, 2000);
 
+        // Update module imports
         setTimeout(() => {
             fs.readFile(modulePath, 'utf8', (err, data) => {
-                if (err) {
-                    console.error(`Error reading module file: ${err.message}`);
-                    return;
-                }
+                if (err) return console.error(`Error reading module file: ${err.message}`);
 
                 const updatedData = data
                     .replace(/imports: \[\],/g, `imports: [],\n  controllers: [${capitalizedName}Controller],\n  providers: [${capitalizedName}Service],`)
@@ -121,14 +109,65 @@ program
                     );
 
                 fs.writeFile(modulePath, updatedData, 'utf8', (err) => {
-                    if (err) {
-                        console.error(`Error writing module file: ${err.message}`);
-                    } else {
-                        console.log(`Updated module file: ${modulePath}`);
-                    }
+                    if (err) console.error(`Error writing module file: ${err.message}`);
+                    else console.log(`Updated module file: ${modulePath}`);
                 });
             });
         }, 3000);
+    });
+
+// ===== C++ resource generation =====
+program
+    .command('cpp <name>')
+    .description('Generate a basic C++ skeleton')
+    .action((rawName) => {
+        const name = toFileSafeName(rawName);
+        const capitalizedName = toPascalCase(rawName);
+        const basePath = `./${name}`;
+        if (!fs.existsSync(basePath)) fs.mkdirSync(basePath, { recursive: true });
+
+        const headerFile = `${basePath}/${name}.h`;
+        const cppFile = `${basePath}/${name}.cpp`;
+        const testFile = `${basePath}/${name}_test.cpp`;
+
+        if (!fs.existsSync(headerFile)) {
+            fs.writeFileSync(headerFile,
+                `#pragma once
+
+class ${capitalizedName} {
+public:
+    ${capitalizedName}();
+    ~${capitalizedName}();
+    // define members
+};
+`);
+            console.log(`Created: ${headerFile}`);
+        }
+
+        if (!fs.existsSync(cppFile)) {
+            fs.writeFileSync(cppFile,
+                `#include "${name}.h"
+
+${capitalizedName}::${capitalizedName}() {}
+${capitalizedName}::~${capitalizedName}() {}
+// implement methods
+`);
+            console.log(`Created: ${cppFile}`);
+        }
+
+        if (!fs.existsSync(testFile)) {
+            fs.writeFileSync(testFile,
+                `#include "${name}.h"
+#include <iostream>
+
+int main() {
+    ${capitalizedName} obj;
+    std::cout << "Test ${capitalizedName} created." << std::endl;
+    return 0;
+}
+`);
+            console.log(`Created: ${testFile}`);
+        }
     });
 
 program.parse(process.argv);
