@@ -19,7 +19,7 @@
   "license": "ISC",
   "dependencies": {
     "commander": "^12.1.0",
-    "victor-nest-resource": "^1.0.9"
+    "victor-nest-resource": "^1.1.11"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",
