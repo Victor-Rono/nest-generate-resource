@@ -18,10 +18,15 @@
   "author": "Victor Rono",
   "license": "ISC",
   "dependencies": {
+    "child_process": "^1.0.2",
     "commander": "^12.1.0",
+    "fs": "0.0.1-security",
+    "path": "^0.12.7",
+    "util": "^0.12.5",
     "victor-nest-resource": "^1.1.11"
   },
   "devDependencies": {
+    "@types/node": "^26.6.6",
     "ts-node": "^10.9.2",
     "tsup": "^8.1.0",
     "typescript": "^5.5.2"
