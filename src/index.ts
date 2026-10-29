@@ -1,4 +1,4 @@
-
+#!/usr/bin/env node
 
 import { Command } from 'commander';
 import { execFile } from 'child_process';
@@ -29,8 +29,7 @@ function toFileSafeName(input: string): string {
         .toLowerCase();
 }
 
-// Convert plural resource names to a basic singular entity name.
-// Example: chat-rooms -> ChatRoom, categories -> Category.
+// Basic singularization for interface names: chat-rooms -> ChatRoom.
 function toEntityName(input: string): string {
     const name = toPascalCase(input);
 
@@ -67,15 +66,11 @@ function createFileIfMissing(filePath: string, content: string): void {
 function writeGeneratedFile(filePath: string, content: string): void {
     ensureDirectory(path.dirname(filePath));
     fs.writeFileSync(filePath, content, 'utf8');
-    console.log(`Updated: ${filePath}`);
+    console.log(`Created: ${filePath}`);
 }
 
 function getRelativeImport(fromFile: string, targetFile: string): string {
-    let relativePath = path.relative(
-        path.dirname(fromFile),
-        targetFile
-    );
-
+    let relativePath = path.relative(path.dirname(fromFile), targetFile);
     relativePath = relativePath.split(path.sep).join('/');
 
     if (!relativePath.startsWith('.')) {
@@ -85,11 +80,30 @@ function getRelativeImport(fromFile: string, targetFile: string): string {
     return relativePath;
 }
 
-// ===== NestJS resource generation =====
+async function runNestCommand(args: string[]): Promise<void> {
+    console.log(`Running: nest ${args.join(' ')}`);
+
+    const { stdout, stderr } = await execFileAsync('nest', args, {
+        cwd: process.cwd(),
+        maxBuffer: 10 * 1024 * 1024,
+    });
+
+    if (stdout) {
+        process.stdout.write(stdout);
+    }
+
+    if (stderr) {
+        process.stderr.write(stderr);
+    }
+}
+
+// ===== CLI setup =====
 
 program
     .version('1.0.2')
     .description('CLI tool to generate NestJS or C++ feature structures');
+
+// ===== NestJS resource generation =====
 
 program
     .command('g <name>')
@@ -98,48 +112,39 @@ program
         const name = toFileSafeName(rawName);
 
         if (!name) {
-            throw new Error('A valid resource name is required.');
+            console.error('A valid resource name is required.');
+            process.exitCode = 1;
+            return;
         }
 
         const moduleName = toPascalCase(name);
         const entityName = toEntityName(name);
-        const collectionName = name
-            .replace(/-/g, '_')
-            .toUpperCase();
-
+        const collectionName = name.replace(/-/g, '_').toUpperCase();
         const basePath = path.resolve(process.cwd(), name);
+        const modulePath = path.join(basePath, `${name}.module.ts`);
 
-        const modulePath = path.join(
-            basePath,
-            `${name}.module.ts`
-        );
-
-        const serviceDirectory = path.join(
-            basePath, 'services', name
-        );
-
-        const controllerDirectory = path.join(
-            basePath, 'controllers', name
-        );
-
+        const serviceDirectory = path.join(basePath, 'services', name);
+        const controllerDirectory = path.join(basePath, 'controllers', name);
         const automationDirectory = path.join(
-            basePath, 'services', `${name}-automation`
+            basePath,
+            'services',
+            `${name}-automation`,
         );
+        const gatewayDirectory = path.join(basePath, 'gateways', name);
 
-        const gatewayDirectory = path.join(
-            basePath, 'gateways', name
-        );
+        if (fs.existsSync(modulePath)) {
+            console.error(`Module already exists: ${modulePath}`);
+            process.exitCode = 1;
+            return;
+        }
 
-        // Create the resource directory structure first.
+        // Create the resource directory structure before generating files.
         [
             basePath,
             serviceDirectory,
             controllerDirectory,
             automationDirectory,
             gatewayDirectory,
-        ].forEach(ensureDirectory);
-
-        const directories = [
             'dto',
             'schema',
             'model',
@@ -148,143 +153,91 @@ program
             'interfaces',
             'utils',
             'constants',
-        ];
+        ].forEach(directory => {
+            const target = [
+                'dto',
+                'schema',
+                'model',
+                'repository',
+                'events',
+                'interfaces',
+                'utils',
+                'constants',
+            ].includes(directory)
+                ? path.join(basePath, directory)
+                : directory;
 
-        directories.forEach(directory => {
-            ensureDirectory(path.join(basePath, directory));
+            ensureDirectory(target);
         });
 
-        // Do not accidentally replace an existing module.
-        // Nest CLI will also reject conflicting generated resources.
-        if (fs.existsSync(modulePath)) {
-            throw new Error(
-                `Module already exists: ${modulePath}`
-            );
-        }
-
         try {
-            // Generate Nest resources sequentially.
-            // --flat keeps the requested nested directory layout.
-            const commands: string[][] = [
-                ['g', 'module', name],
-                ['g', 'service', `services/${name}`, '--flat'],
-                [
-                    'g',
-                    'service',
-                    `services/${name}-automation`,
-                    '--flat',
-                ],
-                [
-                    'g',
-                    'controller',
-                    `controllers/${name}`,
-                    '--flat',
-                ],
-                [
-                    'g',
-                    'gateway',
-                    `gateways/${name}`,
-                    '--flat',
-                ],
-            ];
+            // Run sequentially; do not depend on timeouts or concurrent generation.
+            await runNestCommand(['g', 'module', name]);
+            await runNestCommand(['g', 'service', `services/${name}`, '--flat']);
+            await runNestCommand([
+                'g',
+                'service',
+                `services/${name}-automation`,
+                '--flat',
+            ]);
+            await runNestCommand([
+                'g',
+                'controller',
+                `controllers/${name}`,
+                '--flat',
+            ]);
+            await runNestCommand([
+                'g',
+                'gateway',
+                `gateways/${name}`,
+                '--flat',
+            ]);
 
-            for (const args of commands) {
-                console.log(`Running: nest ${args.join(' ')}`);
-
-                const { stdout, stderr } = await execFileAsync(
-                    'nest',
-                    args,
-                    {
-                        cwd: process.cwd(),
-                        maxBuffer: 10 * 1024 * 1024,
-                    }
-                );
-
-                if (stdout) {
-                    process.stdout.write(stdout);
-                }
-
-                if (stderr) {
-                    process.stderr.write(stderr);
-                }
-            }
-
-            // ===== Supporting files =====
-
+            // Supporting files.
             const supportingFiles: Record<string, string> = {
-                dto: `export class ${moduleName}Dto {
-    // define properties
-}
-`,
-                schema: `import { Schema } from 'mongoose';
-
-export const ${moduleName}Schema = new Schema({
-    // define schema fields
-});
-`,
-                model: `export class ${moduleName}Model {
-    // define model fields
-}
-`,
-                repository: `export class ${moduleName}Repository {
-    // implement database operations
-}
-`,
-                events: `export const ${moduleName}Events = {
-    CREATED: '${collectionName}_CREATED',
-    UPDATED: '${collectionName}_UPDATED',
-} as const;
-`,
-                interfaces: `export interface ${entityName} {
-    // leave blank
-}
-`,
+                dto: `export class ${moduleName}Dto {\n    // define properties\n}\n`,
+                schema: `import { Schema } from 'mongoose';\n\nexport const ${moduleName}Schema = new Schema({\n    // define schema fields\n});\n`,
+                model: `export class ${moduleName}Model {\n    // define model fields\n}\n`,
+                repository: `export class ${moduleName}Repository {\n    // implement database operations\n}\n`,
+                events: `export const ${moduleName}Events = {\n    CREATED: '${collectionName}_CREATED',\n    UPDATED: '${collectionName}_UPDATED',\n} as const;\n`,
+                interfaces: `export interface ${entityName} {\n    // leave blank\n}\n`,
                 utils: '',
                 constants: '',
             };
 
-            for (const [folder, content] of Object.entries(
-                supportingFiles
-            )) {
-                const filePath = path.join(
-                    basePath,
-                    folder,
-                    `${name}.${folder}.ts`
+            for (const [folder, content] of Object.entries(supportingFiles)) {
+                createFileIfMissing(
+                    path.join(basePath, folder, `${name}.${folder}.ts`),
+                    content,
                 );
-
-                createFileIfMissing(filePath, content);
             }
 
-            // ===== Controller =====
-
+            // Paths for generated feature files.
             const controllerPath = path.join(
                 controllerDirectory,
-                `${name}.controller.ts`
+                `${name}.controller.ts`,
             );
-
             const servicePath = path.join(
                 serviceDirectory,
-                `${name}.service.ts`
+                `${name}.service.ts`,
             );
-
             const automationPath = path.join(
                 automationDirectory,
-                `${name}-automation.service.ts`
+                `${name}-automation.service.ts`,
             );
+            const gatewayPath = path.join(gatewayDirectory, `${name}.gateway.ts`);
 
-            const gatewayPath = path.join(
-                gatewayDirectory,
-                `${name}.gateway.ts`
-            );
-
-            const controllerImport = getRelativeImport(
+            const controllerServiceImport = getRelativeImport(
                 controllerPath,
-                servicePath
+                servicePath,
             );
 
-            const controllerContent = `import { Controller } from '@nestjs/common';
+            // Use the user's BaseController generic pattern.
+            writeGeneratedFile(
+                controllerPath,
+                `import { Controller } from '@nestjs/common';
 import { BaseController } from 'src/modules/base/controllers/base/base.controller';
-import { ${moduleName}Service } from '${controllerImport}';
+import { ${moduleName}Service } from '${controllerServiceImport}';
 import { ${entityName} } from '../../interfaces/${name}.interfaces';
 
 @Controller('${name}')
@@ -293,16 +246,12 @@ export class ${moduleName}Controller extends BaseController<${entityName}, ${ent
         super(service);
     }
 }
-`;
-
-            writeGeneratedFile(
-                controllerPath,
-                controllerContent
+`,
             );
 
-            // ===== Service =====
-
-            const serviceContent = `import { Injectable } from '@nestjs/common';
+            writeGeneratedFile(
+                servicePath,
+                `import { Injectable } from '@nestjs/common';
 import { BaseService } from 'src/modules/base/services/base/base.service';
 
 @Injectable()
@@ -311,41 +260,36 @@ export class ${moduleName}Service extends BaseService<${entityName}, ${entityNam
         super();
     }
 }
-`;
+`,
+            );
 
-            writeGeneratedFile(servicePath, serviceContent);
-
-            // ===== Automation service =====
-
-            const automationContent = `import { Injectable } from '@nestjs/common';
+            writeGeneratedFile(
+                automationPath,
+                `import { Injectable } from '@nestjs/common';
 import { BaseAutomationService } from 'src/modules/base/services/base-automation/base-automation.service';
 
 @Injectable()
 export class ${moduleName}AutomationService extends BaseAutomationService {
 
 }
-`;
-
-            writeGeneratedFile(
-                automationPath,
-                automationContent
+`,
             );
 
-            // ===== Gateway =====
-
-            const gatewayContent = `import { WebSocketGateway } from '@nestjs/websockets';
+            writeGeneratedFile(
+                gatewayPath,
+                `import { WebSocketGateway } from '@nestjs/websockets';
 
 @WebSocketGateway()
 export class ${moduleName}Gateway {
 
 }
-`;
+`,
+            );
 
-            writeGeneratedFile(gatewayPath, gatewayContent);
-
-            // ===== Module =====
-
-            const moduleContent = `import { Module } from '@nestjs/common';
+            // Module file: provider token follows CollectionEnums naming convention.
+            writeGeneratedFile(
+                modulePath,
+                `import { Module } from '@nestjs/common';
 import { ${moduleName}Service } from './services/${name}/${name}.service';
 import { ${moduleName}AutomationService } from './services/${name}-automation/${name}-automation.service';
 import { generateCollectionProvider } from 'src/database/database.functions';
@@ -362,30 +306,19 @@ const providers: any[] = [
 ];
 
 @Module({
-    controllers: [
-        ${moduleName}Controller,
-    ],
+    controllers: [${moduleName}Controller],
     imports,
     providers,
     exports: imports.concat(providers),
 })
 export class ${moduleName}Module { }
-`;
-
-            writeGeneratedFile(modulePath, moduleContent);
-
-            console.log(
-                `\nSuccessfully generated ${moduleName} module.`
+`,
             );
+
+            console.log(`\nSuccessfully generated ${moduleName} module at ${basePath}`);
         } catch (error) {
-            const message = error instanceof Error
-                ? error.message
-                : String(error);
-
-            console.error(
-                `Failed to generate ${moduleName}: ${message}`
-            );
-
+            const message = error instanceof Error ? error.message : String(error);
+            console.error(`Failed to generate ${moduleName}: ${message}`);
             process.exitCode = 1;
         }
     });
@@ -397,21 +330,19 @@ program
     .description('Generate a basic C++ skeleton')
     .action((rawName: string) => {
         const name = toFileSafeName(rawName);
-        const capitalizedName = toPascalCase(name);
 
         if (!name) {
-            throw new Error('A valid resource name is required.');
+            console.error('A valid resource name is required.');
+            process.exitCode = 1;
+            return;
         }
 
+        const capitalizedName = toPascalCase(name);
         const basePath = path.resolve(process.cwd(), name);
         ensureDirectory(basePath);
 
-        const headerFile = path.join(basePath, `${name}.h`);
-        const cppFile = path.join(basePath, `${name}.cpp`);
-        const testFile = path.join(basePath, `${name}_test.cpp`);
-
         createFileIfMissing(
-            headerFile,
+            path.join(basePath, `${name}.h`),
             `#pragma once
 
 class ${capitalizedName} {
@@ -420,22 +351,22 @@ public:
     ~${capitalizedName}();
     // define members
 };
-`
+`,
         );
 
         createFileIfMissing(
-            cppFile,
+            path.join(basePath, `${name}.cpp`),
             `#include "${name}.h"
 
 ${capitalizedName}::${capitalizedName}() {}
 ${capitalizedName}::~${capitalizedName}() {}
 
 // implement methods
-`
+`,
         );
 
         createFileIfMissing(
-            testFile,
+            path.join(basePath, `${name}_test.cpp`),
             `#include "${name}.h"
 #include <iostream>
 
@@ -444,7 +375,7 @@ int main() {
     std::cout << "Test ${capitalizedName} created." << std::endl;
     return 0;
 }
-`
+`,
         );
     });
 
