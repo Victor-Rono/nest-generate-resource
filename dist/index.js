@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 "use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -63,61 +64,61 @@ function createFileIfMissing(filePath, content) {
 function writeGeneratedFile(filePath, content) {
   ensureDirectory(import_path.default.dirname(filePath));
   import_fs.default.writeFileSync(filePath, content, "utf8");
-  console.log(`Updated: ${filePath}`);
+  console.log(`Created: ${filePath}`);
 }
 function getRelativeImport(fromFile, targetFile) {
-  let relativePath = import_path.default.relative(
-    import_path.default.dirname(fromFile),
-    targetFile
-  );
+  let relativePath = import_path.default.relative(import_path.default.dirname(fromFile), targetFile);
   relativePath = relativePath.split(import_path.default.sep).join("/");
   if (!relativePath.startsWith(".")) {
     relativePath = `./${relativePath}`;
   }
   return relativePath;
 }
+async function runNestCommand(args) {
+  console.log(`Running: nest ${args.join(" ")}`);
+  const { stdout, stderr } = await execFileAsync("nest", args, {
+    cwd: process.cwd(),
+    maxBuffer: 10 * 1024 * 1024
+  });
+  if (stdout) {
+    process.stdout.write(stdout);
+  }
+  if (stderr) {
+    process.stderr.write(stderr);
+  }
+}
 program.version("1.0.2").description("CLI tool to generate NestJS or C++ feature structures");
 program.command("g <name>").description("Generate a NestJS module and its feature structure").action(async (rawName) => {
   const name = toFileSafeName(rawName);
   if (!name) {
-    throw new Error("A valid resource name is required.");
+    console.error("A valid resource name is required.");
+    process.exitCode = 1;
+    return;
   }
   const moduleName = toPascalCase(name);
   const entityName = toEntityName(name);
   const collectionName = name.replace(/-/g, "_").toUpperCase();
   const basePath = import_path.default.resolve(process.cwd(), name);
-  const modulePath = import_path.default.join(
-    basePath,
-    `${name}.module.ts`
-  );
-  const serviceDirectory = import_path.default.join(
-    basePath,
-    "services",
-    name
-  );
-  const controllerDirectory = import_path.default.join(
-    basePath,
-    "controllers",
-    name
-  );
+  const modulePath = import_path.default.join(basePath, `${name}.module.ts`);
+  const serviceDirectory = import_path.default.join(basePath, "services", name);
+  const controllerDirectory = import_path.default.join(basePath, "controllers", name);
   const automationDirectory = import_path.default.join(
     basePath,
     "services",
     `${name}-automation`
   );
-  const gatewayDirectory = import_path.default.join(
-    basePath,
-    "gateways",
-    name
-  );
+  const gatewayDirectory = import_path.default.join(basePath, "gateways", name);
+  if (import_fs.default.existsSync(modulePath)) {
+    console.error(`Module already exists: ${modulePath}`);
+    process.exitCode = 1;
+    return;
+  }
   [
     basePath,
     serviceDirectory,
     controllerDirectory,
     automationDirectory,
-    gatewayDirectory
-  ].forEach(ensureDirectory);
-  const directories = [
+    gatewayDirectory,
     "dto",
     "schema",
     "model",
@@ -126,55 +127,40 @@ program.command("g <name>").description("Generate a NestJS module and its featur
     "interfaces",
     "utils",
     "constants"
-  ];
-  directories.forEach((directory) => {
-    ensureDirectory(import_path.default.join(basePath, directory));
+  ].forEach((directory) => {
+    const target = [
+      "dto",
+      "schema",
+      "model",
+      "repository",
+      "events",
+      "interfaces",
+      "utils",
+      "constants"
+    ].includes(directory) ? import_path.default.join(basePath, directory) : directory;
+    ensureDirectory(target);
   });
-  if (import_fs.default.existsSync(modulePath)) {
-    throw new Error(
-      `Module already exists: ${modulePath}`
-    );
-  }
   try {
-    const commands = [
-      ["g", "module", name],
-      ["g", "service", `services/${name}`, "--flat"],
-      [
-        "g",
-        "service",
-        `services/${name}-automation`,
-        "--flat"
-      ],
-      [
-        "g",
-        "controller",
-        `controllers/${name}`,
-        "--flat"
-      ],
-      [
-        "g",
-        "gateway",
-        `gateways/${name}`,
-        "--flat"
-      ]
-    ];
-    for (const args of commands) {
-      console.log(`Running: nest ${args.join(" ")}`);
-      const { stdout, stderr } = await execFileAsync(
-        "nest",
-        args,
-        {
-          cwd: process.cwd(),
-          maxBuffer: 10 * 1024 * 1024
-        }
-      );
-      if (stdout) {
-        process.stdout.write(stdout);
-      }
-      if (stderr) {
-        process.stderr.write(stderr);
-      }
-    }
+    await runNestCommand(["g", "module", name]);
+    await runNestCommand(["g", "service", `services/${name}`, "--flat"]);
+    await runNestCommand([
+      "g",
+      "service",
+      `services/${name}-automation`,
+      "--flat"
+    ]);
+    await runNestCommand([
+      "g",
+      "controller",
+      `controllers/${name}`,
+      "--flat"
+    ]);
+    await runNestCommand([
+      "g",
+      "gateway",
+      `gateways/${name}`,
+      "--flat"
+    ]);
     const supportingFiles = {
       dto: `export class ${moduleName}Dto {
     // define properties
@@ -206,15 +192,11 @@ export const ${moduleName}Schema = new Schema({
       utils: "",
       constants: ""
     };
-    for (const [folder, content] of Object.entries(
-      supportingFiles
-    )) {
-      const filePath = import_path.default.join(
-        basePath,
-        folder,
-        `${name}.${folder}.ts`
+    for (const [folder, content] of Object.entries(supportingFiles)) {
+      createFileIfMissing(
+        import_path.default.join(basePath, folder, `${name}.${folder}.ts`),
+        content
       );
-      createFileIfMissing(filePath, content);
     }
     const controllerPath = import_path.default.join(
       controllerDirectory,
@@ -228,17 +210,16 @@ export const ${moduleName}Schema = new Schema({
       automationDirectory,
       `${name}-automation.service.ts`
     );
-    const gatewayPath = import_path.default.join(
-      gatewayDirectory,
-      `${name}.gateway.ts`
-    );
-    const controllerImport = getRelativeImport(
+    const gatewayPath = import_path.default.join(gatewayDirectory, `${name}.gateway.ts`);
+    const controllerServiceImport = getRelativeImport(
       controllerPath,
       servicePath
     );
-    const controllerContent = `import { Controller } from '@nestjs/common';
+    writeGeneratedFile(
+      controllerPath,
+      `import { Controller } from '@nestjs/common';
 import { BaseController } from 'src/modules/base/controllers/base/base.controller';
-import { ${moduleName}Service } from '${controllerImport}';
+import { ${moduleName}Service } from '${controllerServiceImport}';
 import { ${entityName} } from '../../interfaces/${name}.interfaces';
 
 @Controller('${name}')
@@ -247,12 +228,11 @@ export class ${moduleName}Controller extends BaseController<${entityName}, ${ent
         super(service);
     }
 }
-`;
-    writeGeneratedFile(
-      controllerPath,
-      controllerContent
+`
     );
-    const serviceContent = `import { Injectable } from '@nestjs/common';
+    writeGeneratedFile(
+      servicePath,
+      `import { Injectable } from '@nestjs/common';
 import { BaseService } from 'src/modules/base/services/base/base.service';
 
 @Injectable()
@@ -261,29 +241,32 @@ export class ${moduleName}Service extends BaseService<${entityName}, ${entityNam
         super();
     }
 }
-`;
-    writeGeneratedFile(servicePath, serviceContent);
-    const automationContent = `import { Injectable } from '@nestjs/common';
+`
+    );
+    writeGeneratedFile(
+      automationPath,
+      `import { Injectable } from '@nestjs/common';
 import { BaseAutomationService } from 'src/modules/base/services/base-automation/base-automation.service';
 
 @Injectable()
 export class ${moduleName}AutomationService extends BaseAutomationService {
 
 }
-`;
-    writeGeneratedFile(
-      automationPath,
-      automationContent
+`
     );
-    const gatewayContent = `import { WebSocketGateway } from '@nestjs/websockets';
+    writeGeneratedFile(
+      gatewayPath,
+      `import { WebSocketGateway } from '@nestjs/websockets';
 
 @WebSocketGateway()
 export class ${moduleName}Gateway {
 
 }
-`;
-    writeGeneratedFile(gatewayPath, gatewayContent);
-    const moduleContent = `import { Module } from '@nestjs/common';
+`
+    );
+    writeGeneratedFile(
+      modulePath,
+      `import { Module } from '@nestjs/common';
 import { ${moduleName}Service } from './services/${name}/${name}.service';
 import { ${moduleName}AutomationService } from './services/${name}-automation/${name}-automation.service';
 import { generateCollectionProvider } from 'src/database/database.functions';
@@ -300,41 +283,34 @@ const providers: any[] = [
 ];
 
 @Module({
-    controllers: [
-        ${moduleName}Controller,
-    ],
+    controllers: [${moduleName}Controller],
     imports,
     providers,
     exports: imports.concat(providers),
 })
 export class ${moduleName}Module { }
-`;
-    writeGeneratedFile(modulePath, moduleContent);
-    console.log(
-      `
-Successfully generated ${moduleName} module.`
+`
     );
+    console.log(`
+Successfully generated ${moduleName} module at ${basePath}`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(
-      `Failed to generate ${moduleName}: ${message}`
-    );
+    console.error(`Failed to generate ${moduleName}: ${message}`);
     process.exitCode = 1;
   }
 });
 program.command("cpp <name>").description("Generate a basic C++ skeleton").action((rawName) => {
   const name = toFileSafeName(rawName);
-  const capitalizedName = toPascalCase(name);
   if (!name) {
-    throw new Error("A valid resource name is required.");
+    console.error("A valid resource name is required.");
+    process.exitCode = 1;
+    return;
   }
+  const capitalizedName = toPascalCase(name);
   const basePath = import_path.default.resolve(process.cwd(), name);
   ensureDirectory(basePath);
-  const headerFile = import_path.default.join(basePath, `${name}.h`);
-  const cppFile = import_path.default.join(basePath, `${name}.cpp`);
-  const testFile = import_path.default.join(basePath, `${name}_test.cpp`);
   createFileIfMissing(
-    headerFile,
+    import_path.default.join(basePath, `${name}.h`),
     `#pragma once
 
 class ${capitalizedName} {
@@ -346,7 +322,7 @@ public:
 `
   );
   createFileIfMissing(
-    cppFile,
+    import_path.default.join(basePath, `${name}.cpp`),
     `#include "${name}.h"
 
 ${capitalizedName}::${capitalizedName}() {}
@@ -356,7 +332,7 @@ ${capitalizedName}::~${capitalizedName}() {}
 `
   );
   createFileIfMissing(
-    testFile,
+    import_path.default.join(basePath, `${name}_test.cpp`),
     `#include "${name}.h"
 #include <iostream>
 
